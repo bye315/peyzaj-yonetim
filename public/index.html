@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Peyzaj Takip</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <strong>Hoş geldin</strong>
+      <form method="POST" action="./logout">
+        <button type="submit" class="secondary">Çıkış</button>
+      </form>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h1>Peyzaj Paylaşım Hesaplayıcı</h1>
+        <p>İşin yapılış şekline göre payları otomatik hesaplar.</p>
+
+        <div class="grid">
+          <label>
+            Ercan
+            <input id="ercan" value="70" type="number" step="0.1" />
+          </label>
+          <label>
+            İsmail
+            <input id="ismail" value="15" type="number" step="0.1" />
+          </label>
+          <label>
+            Ömer
+            <input id="omer" value="15" type="number" step="0.1" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="preset-one">1 kişi yaptı</button>
+          <button id="preset-two">2 kişi yaptı</button>
+          <button id="calculate">Hesapla</button>
+        </div>
+
+        <div id="result" class="result"></div>
+
+        <h3>Güncel Durum Paylaşımı</h3>
+        <div class="grid">
+          <label>
+            Toplam iş sayısı
+            <input id="jobCount" type="number" min="0" value="1" />
+          </label>
+          <label>
+            Toplam gelir (₺)
+            <input id="totalIncome" type="number" min="0" value="0" />
+          </label>
+          <label>
+            Giderler (₺)
+            <input id="expenses" type="number" min="0" value="0" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="calculate-status" type="button">Paylaşımı hesapla</button>
+        </div>
+
+        <div id="status-result" class="result"></div>
+
+        <h3>Bakiye Takibi</h3>
+        <div class="grid">
+          <label>
+            Ercan bakiyesi ekle (₺)
+            <input id="ercanDeposit" type="number" min="0" value="0" />
+          </label>
+          <label>
+            İsmail bakiyesi ekle (₺)
+            <input id="ismailDeposit" type="number" min="0" value="0" />
+          </label>
+          <label>
+            Ömer bakiyesi ekle (₺)
+            <input id="omerDeposit" type="number" min="0" value="0" />
+          </label>
+        </div>
+
+        <div class="grid">
+          <label>
+            Ercan harcaması (₺)
+            <input id="ercanExpense" type="number" min="0" value="0" />
+          </label>
+          <label>
+            İsmail harcaması (₺)
+            <input id="ismailExpense" type="number" min="0" value="0" />
+          </label>
+          <label>
+            Ömer harcaması (₺)
+            <input id="omerExpense" type="number" min="0" value="0" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="apply-balances" type="button">Bakiyeleri güncelle</button>
+        </div>
+
+        <div id="balance-result" class="result"></div>
+      </section>
+
+      <section class="card">
+        <h2>Bildirim Ekle</h2>
+        <form id="reminder-form">
+          <label>
+            Kişi adı
+            <input id="personName" required placeholder="Örn: Ercan" />
+          </label>
+          <label>
+            İş adı
+            <input id="jobTitle" required placeholder="Örn: Çim biçme" />
+          </label>
+          <label>
+            Son biçim tarihi
+            <input id="lastCutDate" type="date" required />
+          </label>
+          <label>
+            Sonraki ziyaret tarihi
+            <input id="nextVisitDate" type="date" required />
+          </label>
+          <label>
+            Ödeme durumu
+            <select id="paymentStatus">
+              <option value="unpaid">Ödeme alınmadı</option>
+              <option value="paid">Ödeme alındı</option>
+            </select>
+          </label>
+          <label>
+            Not
+            <textarea id="notes" rows="3" placeholder="İş durumu, ek not"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit">Kaydet ve bildir</button>
+            <button id="enable-notifications" type="button">Bildirimleri aç</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Aktif Hatırlatmalar</h2>
+        <div id="reminders"></div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
