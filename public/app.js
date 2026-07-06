@@ -89,7 +89,7 @@ function setPreset(values) {
 }
 
 async function loadVapidKey() {
-  const response = await fetch('./api/vapid-public-key');
+  const response = await fetch('/peyzaj/api/vapid-public-key');
   const data = await response.json();
   state.publicKey = data.publicKey;
 }
@@ -113,7 +113,7 @@ async function subscribeToPush() {
     applicationServerKey: urlBase64ToUint8Array(state.publicKey),
   });
 
-  await fetch('./api/subscribe', {
+  await fetch('/peyzaj/api/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(subscription),
@@ -123,7 +123,7 @@ async function subscribeToPush() {
 }
 
 async function loadReminders() {
-  const response = await fetch('./api/reminders');
+  const response = await fetch('/peyzaj/api/reminders');
   const reminders = await response.json();
   const container = document.querySelector('#reminders');
 
@@ -156,7 +156,7 @@ async function loadReminders() {
   container.querySelectorAll('[data-remove-id]').forEach((button) => {
     button.addEventListener('click', async () => {
       const id = button.getAttribute('data-remove-id');
-      await fetch(`./api/reminders/${id}`, { method: 'DELETE' });
+      await fetch(`/peyzaj/api/reminders/${id}`, { method: 'DELETE' });
       await loadReminders();
     });
   });
@@ -213,7 +213,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       notes: document.querySelector('#notes').value,
     };
 
-    const response = await fetch('./api/reminders', {
+    const response = await fetch('/peyzaj/api/reminders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
