@@ -1,0 +1,6 @@
+{
+  "appId": "com.peyzaj.takip",
+  "appName": "Peyzaj Takip",
+  "webDir": "public",
+  "bundledWebRuntime": false
+}

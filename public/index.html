@@ -13,10 +13,8 @@
   </head>
   <body>
     <header class="topbar">
-      <strong>Hoş geldin</strong>
-      <form method="POST" action="./logout">
-        <button type="submit" class="secondary">Çıkış</button>
-      </form>
+      <strong id="user-welcome">Yükleniyor...</strong>
+      <button id="logout-button" class="secondary">Çıkış</button>
     </header>
 
     <main class="container">
@@ -150,6 +148,11 @@
       </section>
     </main>
 
+    <!-- Firebase SDK (compat mode) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="./firebase-config.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
