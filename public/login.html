@@ -60,7 +60,7 @@
           window.location.href = './index.html';
         } catch (error) {
           console.error(error);
-          alert('Giriş başarısız: Kullanıcı adı veya şifre yanlış.');
+          alert('Giriş Başarısız!\nHata Kodu: ' + error.code + '\nHata Mesajı: ' + error.message);
         }
       });
     </script>
