@@ -14,5 +14,5 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 // Kolay erişim için global değişkenler tanımlanıyor
-const db = firebase.firestore();
-const auth = firebase.auth();
+const db = typeof firebase.firestore === 'function' ? firebase.firestore() : null;
+const auth = typeof firebase.auth === 'function' ? firebase.auth() : null;
