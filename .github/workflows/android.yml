@@ -44,6 +44,7 @@ jobs:
           else
             echo "Warning: google-services.json not found in root. FCM will not work."
           fi
+          node scripts/configure-android.js
           npx cap sync android
 
       - name: Android APK Derle (Debug)

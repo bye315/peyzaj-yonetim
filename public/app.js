@@ -40,11 +40,21 @@ async function registerPushNotifications() {
       console.log('Push registration success, token: ' + token.value);
       const currentUser = auth.currentUser;
       if (currentUser) {
-        // Store FCM Token securely in Firestore under current user's UID
         await db.collection('fcm_tokens').doc(currentUser.uid).set({
           token: token.value,
           email: currentUser.email,
           updatedAt: new Date().toISOString()
+        });
+      } else {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+          if (user) {
+            await db.collection('fcm_tokens').doc(user.uid).set({
+              token: token.value,
+              email: user.email,
+              updatedAt: new Date().toISOString()
+            });
+            unsubscribe();
+          }
         });
       }
     });
