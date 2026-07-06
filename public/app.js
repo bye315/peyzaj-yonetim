@@ -2,7 +2,7 @@ const state = {
   publicKey: '',
 };
 
-// Auth listener to protect pages
+// Auth listener to protect pages and sync notifications
 auth.onAuthStateChanged((user) => {
   if (!user) {
     window.location.href = './login.html';
@@ -11,6 +11,7 @@ auth.onAuthStateChanged((user) => {
     document.querySelector('#user-welcome').textContent = `Hoş geldin, ${username.charAt(0).toUpperCase() + username.slice(1)}`;
     loadReminders();
     listenToNewReminders();
+    syncLocalNotifications(); // Sync all future reminders locally on startup
   }
 });
 
@@ -152,6 +153,138 @@ function renderBalanceResult() {
   container.innerHTML = html;
 }
 
+// Hashing function to map Firestore String ID to unique positive Integer
+function getNotificationIdFromDocId(docId) {
+  let hash = 0;
+  for (let i = 0; i < docId.length; i++) {
+    hash = docId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash) % 1000000;
+}
+
+// Schedule future Local Notification on Phone
+async function scheduleReminderNotification(reminder, docId) {
+  if (typeof window.Capacitor === 'undefined' || !window.Capacitor.isPluginAvailable('LocalNotifications')) {
+    console.log('LocalNotifications plugin is not available on this device');
+    return;
+  }
+
+  const { LocalNotifications } = window.Capacitor.Plugins;
+
+  try {
+    const permission = await LocalNotifications.requestPermissions();
+    if (permission.display !== 'granted') {
+      console.warn('LocalNotifications permission not granted');
+      return;
+    }
+
+    const nextVisit = new Date(reminder.nextVisitDate + 'T00:00:00');
+    const scheduleTime = new Date(nextVisit.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+    scheduleTime.setHours(9, 0, 0, 0); // 9:00 AM
+
+    // If scheduled time is in the past, but next visit is in the future
+    if (scheduleTime.getTime() <= Date.now()) {
+      const visitTime = new Date(reminder.nextVisitDate + 'T09:00:00');
+      if (visitTime.getTime() > Date.now()) {
+        // Schedule for 5 seconds from now as a test/helper warning
+        scheduleTime.setTime(Date.now() + 5000);
+      } else {
+        return; // Both in the past, skip
+      }
+    }
+
+    const notificationId = getNotificationIdFromDocId(docId);
+
+    // Cancel existing first to prevent duplicate accumulation
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
+    } catch (e) {}
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title: `${reminder.personName} Hatırlatması`,
+          body: `${reminder.jobTitle} işi için son 1 gün! Yarın gidilecek.`,
+          id: notificationId,
+          schedule: { at: scheduleTime },
+          sound: null,
+          attachments: null,
+          actionTypeId: "",
+          extra: null
+        }
+      ]
+    });
+
+    console.log(`Scheduled local notification ID ${notificationId} for ${scheduleTime.toString()}`);
+  } catch (err) {
+    console.error('Error scheduling local notification:', err);
+  }
+}
+
+// Cancel local notification
+async function cancelReminderNotification(notificationId) {
+  if (notificationId && typeof window.Capacitor !== 'undefined' && window.Capacitor.isPluginAvailable('LocalNotifications')) {
+    const { LocalNotifications } = window.Capacitor.Plugins;
+    try {
+      await LocalNotifications.cancel({
+        notifications: [{ id: notificationId }]
+      });
+      console.log(`Cancelled scheduled notification ID ${notificationId}`);
+    } catch (err) {
+      console.error('Error cancelling notification:', err);
+    }
+  }
+}
+
+// Sync all future reminders locally from database
+async function syncLocalNotifications() {
+  if (typeof window.Capacitor === 'undefined' || !window.Capacitor.isPluginAvailable('LocalNotifications')) {
+    return;
+  }
+  
+  const { LocalNotifications } = window.Capacitor.Plugins;
+  
+  try {
+    const permission = await LocalNotifications.requestPermissions();
+    if (permission.display !== 'granted') return;
+
+    const snapshot = await db.collection('reminders').get();
+    const pendingNotifications = [];
+    
+    snapshot.forEach((doc) => {
+      const reminder = doc.data();
+      const docId = doc.id;
+      
+      const nextVisit = new Date(reminder.nextVisitDate + 'T00:00:00');
+      const scheduleTime = new Date(nextVisit.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+      scheduleTime.setHours(9, 0, 0, 0); // 9:00 AM
+      
+      if (scheduleTime.getTime() > Date.now()) {
+        const notificationId = getNotificationIdFromDocId(docId);
+        pendingNotifications.push({
+          title: `${reminder.personName} Hatırlatması`,
+          body: `${reminder.jobTitle} işi için son 1 gün! Yarın gidilecek.`,
+          id: notificationId,
+          schedule: { at: scheduleTime },
+          sound: null,
+          attachments: null,
+          actionTypeId: "",
+          extra: null
+        });
+      }
+    });
+    
+    if (pendingNotifications.length > 0) {
+      await LocalNotifications.schedule({
+        notifications: pendingNotifications
+      });
+      console.log(`Synced ${pendingNotifications.length} upcoming notifications.`);
+    }
+  } catch (err) {
+    console.error('Error syncing notifications:', err);
+  }
+}
+
 // Load VAPID Key from Firestore if available
 async function loadVapidKey() {
   try {
@@ -164,7 +297,7 @@ async function loadVapidKey() {
   }
 }
 
-// Push subscription
+// Push subscription (Legacy Web Push - kept for fallback)
 async function subscribeToPush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     alert('Bu tarayıcı web push desteklemiyor.');
@@ -239,6 +372,8 @@ async function loadReminders() {
       button.addEventListener('click', async () => {
         const id = button.getAttribute('data-remove-id');
         if (confirm('Bu hatırlatmayı silmek istediğinize emin misiniz?')) {
+          const notificationId = getNotificationIdFromDocId(id);
+          await cancelReminderNotification(notificationId); // Cancel alarm on this phone
           await db.collection('reminders').doc(id).delete();
           await loadReminders();
         }
@@ -249,23 +384,31 @@ async function loadReminders() {
   }
 }
 
-// Listen to new reminders in real-time to show local notifications
+// Listen to new reminders in real-time to show local notifications and manage alarms
 let isFirstLoad = true;
 const sessionStartTime = new Date().toISOString();
 
 function listenToNewReminders() {
   db.collection('reminders')
-    .where('createdAt', '>', sessionStartTime)
     .onSnapshot((snapshot) => {
       if (isFirstLoad) {
         isFirstLoad = false;
         return;
       }
-      snapshot.docChanges().forEach((change) => {
+      snapshot.docChanges().forEach(async (change) => {
+        const docId = change.doc.id;
+        const reminder = change.doc.data();
+        const notificationId = getNotificationIdFromDocId(docId);
+
         if (change.type === 'added') {
-          const reminder = change.doc.data();
-          showLocalNotification(reminder);
-          loadReminders(); // Reload list to show newly added reminder
+          if (reminder.createdAt > sessionStartTime) {
+            showLocalNotification(reminder);
+            await scheduleReminderNotification(reminder, docId); // Schedule on this phone
+          }
+          loadReminders();
+        } else if (change.type === 'removed') {
+          await cancelReminderNotification(notificationId); // Cancel on this phone
+          loadReminders();
         }
       });
     });
@@ -358,7 +501,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     };
 
     try {
-      await db.collection('reminders').add(payload);
+      const docRef = await db.collection('reminders').add(payload);
+      await scheduleReminderNotification(payload, docRef.id); // Schedule notification immediately on this phone
       event.target.reset();
       await loadReminders();
       alert('Hatırlatma kaydedildi.');

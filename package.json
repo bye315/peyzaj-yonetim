@@ -9,6 +9,7 @@
   "dependencies": {
     "@capacitor/android": "^5.7.0",
     "@capacitor/core": "^5.7.0",
+    "@capacitor/local-notifications": "^5.0.8",
     "@upstash/redis": "^1.29.1",
     "express": "^4.21.2",
     "express-session": "^1.19.0",
