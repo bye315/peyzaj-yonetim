@@ -106,7 +106,7 @@ async function subscribeToPush() {
     return;
   }
 
-  const registration = await navigator.serviceWorker.register('./sw.js');
+  const registration = await navigator.serviceWorker.ready;
   await registration.update();
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
@@ -174,6 +174,13 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+    } catch (err) {
+      console.error('Service Worker registration failed:', err);
+    }
+  }
   await loadVapidKey();
   await loadReminders();
 

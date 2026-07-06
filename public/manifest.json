@@ -1,0 +1,18 @@
+{
+  "name": "Peyzaj Takip",
+  "short_name": "Peyzaj",
+  "description": "Peyzaj işleri için paylaşım hesaplayıcı ve web push bildirim sistemi",
+  "start_url": "/peyzaj/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#4caf50",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

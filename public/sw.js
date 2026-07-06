@@ -11,7 +11,7 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Hatırlatma';
   const options = {
     body: data.body || '',
-    icon: '/icon.png',
+    icon: '/peyzaj/icon.jpg',
     data: { url: data.url || '/' },
   };
 
