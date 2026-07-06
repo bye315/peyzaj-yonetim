@@ -14,16 +14,6 @@ auth.onAuthStateChanged((user) => {
   }
 });
 
-// Logout click action
-document.querySelector('#logout-button').addEventListener('click', async () => {
-  try {
-    await auth.signOut();
-    window.location.href = './login.html';
-  } catch (err) {
-    console.error('Çıkış hatası:', err);
-  }
-});
-
 function calculateShares(ercan, ismail, omer) {
   const total = Number(ercan) + Number(ismail) + Number(omer);
   if (total === 0) {

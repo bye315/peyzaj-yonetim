@@ -3,36 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Giriş</title>
+    <title>Giriş Yapılıyor</title>
     <link rel="manifest" href="./manifest.json" />
     <meta name="theme-color" content="#4caf50" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="./icon.jpg" />
     <style>
-      body { font-family: Arial, sans-serif; background: #f4f7fb; margin: 0; display: grid; place-items: center; min-height: 100vh; }
-      .box { background: white; padding: 24px; border-radius: 16px; width: min(90vw, 360px); box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-      h1 { margin-top: 0; }
-      label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-      input, button { padding: 10px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }
-      button { background: #2563eb; color: white; border: none; cursor: pointer; width: 100%; }
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f7fb;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      .box {
+        text-align: center;
+        background: white;
+        padding: 40px;
+        border-radius: 16px;
+        width: min(90vw, 360px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      }
+      .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: #2563eb;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body>
     <div class="box">
-      <h1>Giriş Yap</h1>
-      <p>Kullanıcı adları: ercan, ismail, omer</p>
-      <form id="login-form">
-        <label>
-          Kullanıcı adı / E-posta
-          <input id="username" required />
-        </label>
-        <label>
-          Şifre
-          <input id="password" type="password" required />
-        </label>
-        <button type="submit">Giriş</button>
-      </form>
+      <h2 id="status-text">Giriş yapılıyor...</h2>
+      <div class="spinner" id="spinner"></div>
     </div>
 
     <!-- Firebase SDK (compat mode - Yerel) -->
@@ -40,27 +52,20 @@
     <script src="./firebase-auth-compat.js"></script>
     <script src="./firebase-config.js"></script>
     <script>
-      // Oturum durumunu dinle: Zaten giriş yapılmışsa doğrudan ana sayfaya git
       auth.onAuthStateChanged((user) => {
         if (user) {
           window.location.href = './index.html';
-        }
-      });
-
-      document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const usernameInput = document.getElementById('username').value.trim().toLowerCase();
-        const password = document.getElementById('password').value;
-
-        // Kullanıcı adını e-postaya dönüştür
-        const email = usernameInput.includes('@') ? usernameInput : `${usernameInput}@peyzaj.com`;
-
-        try {
-          await auth.signInWithEmailAndPassword(email, password);
-          window.location.href = './index.html';
-        } catch (error) {
-          console.error(error);
-          alert('Giriş Başarısız!\nHata Kodu: ' + error.code + '\nHata Mesajı: ' + error.message);
+        } else {
+          // Otomatik olarak belirlenen hesapla arka planda giriş yap
+          auth.signInWithEmailAndPassword("omerosmanaplak50@gmail.com", "123123123")
+            .then(() => {
+              window.location.href = './index.html';
+            })
+            .catch((error) => {
+              console.error(error);
+              document.getElementById('status-text').innerHTML = 'Giriş Hatası!<br><small style="color:red; font-size:14px;">' + error.message + '</small>';
+              document.getElementById('spinner').style.display = 'none';
+            });
         }
       });
     </script>
