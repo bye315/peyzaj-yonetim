@@ -1,12 +1,13 @@
 // Firebase Yapılandırma Bilgileri
 // Kendi Firebase projenizi oluşturduktan sonra burayı güncelleyin.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAnCxWtyArfnlJhvMlQR_Pc8BzIuGxUzow",
+  authDomain: "peyzaj-359cc.firebaseapp.com",
+  projectId: "peyzaj-359cc",
+  storageBucket: "peyzaj-359cc.firebasestorage.app",
+  messagingSenderId: "1029243925876",
+  appId: "1:1029243925876:web:57c2101ddb4df8a758e821",
+  measurementId: "G-07P38RET0Z"
 };
 
 // Firebase başlatılıyor
