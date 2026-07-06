@@ -1,24 +1,24 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
-const fs = require('fs');
 const webpush = require('web-push');
+const { Redis } = require('@upstash/redis');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const APP_BASE_PATH = '/peyzaj';
-const DATA_DIR = path.join(__dirname, 'data');
-const REMINDERS_FILE = path.join(DATA_DIR, 'reminders.json');
-const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'subscriptions.json');
+
+// Initialize Redis
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
 const USERS = {
   ercan: '123456',
   ismail: '123456',
   omer: '123456',
 };
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -31,30 +31,54 @@ app.use(session({
 app.use(APP_BASE_PATH, express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Initialize VAPID keys from Redis
 let vapidKeys = null;
-if (fs.existsSync(path.join(DATA_DIR, 'vapid.json'))) {
-  vapidKeys = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'vapid.json'), 'utf8'));
-} else {
-  vapidKeys = webpush.generateVAPIDKeys();
-  fs.writeFileSync(path.join(DATA_DIR, 'vapid.json'), JSON.stringify(vapidKeys, null, 2));
+
+async function initializeVapidKeys() {
+  try {
+    const stored = await redis.get('vapid_keys');
+    if (stored) {
+      vapidKeys = stored;
+    } else {
+      vapidKeys = webpush.generateVAPIDKeys();
+      await redis.set('vapid_keys', vapidKeys);
+    }
+    webpush.setVapidDetails(
+      'mailto:ercan@example.com',
+      vapidKeys.publicKey,
+      vapidKeys.privateKey
+    );
+  } catch (error) {
+    console.error('Error initializing VAPID keys:', error);
+    // Fallback for local testing
+    vapidKeys = webpush.generateVAPIDKeys();
+    webpush.setVapidDetails(
+      'mailto:ercan@example.com',
+      vapidKeys.publicKey,
+      vapidKeys.privateKey
+    );
+  }
 }
 
-webpush.setVapidDetails(
-  'mailto:ercan@example.com',
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
+// Initialize on startup
+initializeVapidKeys();
 
-function loadJSON(filePath, fallback) {
+async function loadJSON(key, fallback) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const data = await redis.get(key);
+    return data || fallback;
   } catch (error) {
+    console.error(`Error loading ${key}:`, error);
     return fallback;
   }
 }
 
-function saveJSON(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+async function saveJSON(key, data) {
+  try {
+    await redis.set(key, data);
+  } catch (error) {
+    console.error(`Error saving ${key}:`, error);
+  }
 }
 
 function formatTurkishDate(dateString) {
@@ -78,15 +102,21 @@ function buildReminderText(reminder) {
 }
 
 async function sendPushNotification(payload) {
-  const subscriptions = loadJSON(SUBSCRIPTIONS_FILE, []);
-  const tasks = subscriptions.map(async (subscription) => {
-    try {
-      await webpush.sendNotification(subscription, JSON.stringify(payload));
-    } catch (error) {
-      console.error('Push error', error.message);
-    }
-  });
-  await Promise.all(tasks);
+  try {
+    const subscriptions = await loadJSON('subscriptions', []);
+    if (!Array.isArray(subscriptions)) return;
+    
+    const tasks = subscriptions.map(async (subscription) => {
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
+      } catch (error) {
+        console.error('Push error', error.message);
+      }
+    });
+    await Promise.all(tasks);
+  } catch (error) {
+    console.error('Error sending push notifications:', error);
+  }
 }
 
 app.get(`${APP_BASE_PATH}/login`, (_req, res) => {
@@ -119,45 +149,65 @@ app.get(`${APP_BASE_PATH}/api/vapid-public-key`, (_req, res) => {
   res.json({ publicKey: vapidKeys.publicKey });
 });
 
-app.post(`${APP_BASE_PATH}/api/subscribe`, (req, res) => {
-  const subscriptions = loadJSON(SUBSCRIPTIONS_FILE, []);
-  const exists = subscriptions.some((item) => JSON.stringify(item) === JSON.stringify(req.body));
-  if (!exists) {
-    subscriptions.push(req.body);
-    saveJSON(SUBSCRIPTIONS_FILE, subscriptions);
+app.post(`${APP_BASE_PATH}/api/subscribe`, async (req, res) => {
+  try {
+    const subscriptions = await loadJSON('subscriptions', []);
+    const exists = subscriptions.some((item) => JSON.stringify(item) === JSON.stringify(req.body));
+    if (!exists) {
+      subscriptions.push(req.body);
+      await saveJSON('subscriptions', subscriptions);
+    }
+    res.status(201).json({ ok: true });
+  } catch (error) {
+    console.error('Subscribe error:', error);
+    res.status(500).json({ error: 'Failed to subscribe' });
   }
-  res.status(201).json({ ok: true });
 });
 
-app.get(`${APP_BASE_PATH}/api/reminders`, isAuthenticated, (_req, res) => {
-  const reminders = loadJSON(REMINDERS_FILE, []);
-  res.json(reminders);
+app.get(`${APP_BASE_PATH}/api/reminders`, isAuthenticated, async (_req, res) => {
+  try {
+    const reminders = await loadJSON('reminders', []);
+    res.json(reminders);
+  } catch (error) {
+    console.error('Get reminders error:', error);
+    res.status(500).json({ error: 'Failed to get reminders' });
+  }
 });
 
-app.delete(`${APP_BASE_PATH}/api/reminders/:id`, isAuthenticated, (req, res) => {
-  const reminders = loadJSON(REMINDERS_FILE, []);
-  const filtered = reminders.filter((reminder) => reminder.id !== req.params.id);
-  saveJSON(REMINDERS_FILE, filtered);
-  res.json({ ok: true });
+app.delete(`${APP_BASE_PATH}/api/reminders/:id`, isAuthenticated, async (req, res) => {
+  try {
+    const reminders = await loadJSON('reminders', []);
+    const filtered = reminders.filter((reminder) => reminder.id !== req.params.id);
+    await saveJSON('reminders', filtered);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Delete reminder error:', error);
+    res.status(500).json({ error: 'Failed to delete reminder' });
+  }
 });
 
 app.post(`${APP_BASE_PATH}/api/reminders`, isAuthenticated, async (req, res) => {
-  const reminders = loadJSON(REMINDERS_FILE, []);
-  const reminder = {
-    id: Date.now().toString(),
-    createdAt: new Date().toISOString(),
-    ...req.body,
-  };
-  reminders.unshift(reminder);
-  saveJSON(REMINDERS_FILE, reminders);
+  try {
+    const reminders = await loadJSON('reminders', []);
+    const reminder = {
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      ...req.body,
+    };
+    reminders.unshift(reminder);
+    await saveJSON('reminders', reminders);
 
-  await sendPushNotification({
-    title: `${reminder.personName} için hatırlatma`,
-    body: buildReminderText(reminder),
-    url: '/',
-  });
+    await sendPushNotification({
+      title: `${reminder.personName} için hatırlatma`,
+      body: buildReminderText(reminder),
+      url: '/',
+    });
 
-  res.status(201).json(reminder);
+    res.status(201).json(reminder);
+  } catch (error) {
+    console.error('Create reminder error:', error);
+    res.status(500).json({ error: 'Failed to create reminder' });
+  }
 });
 
 app.get(APP_BASE_PATH, isAuthenticated, (_req, res) => {
