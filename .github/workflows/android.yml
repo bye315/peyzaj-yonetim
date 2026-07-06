@@ -38,6 +38,12 @@ jobs:
       - name: Capacitor Android Ekle ve Eşitle
         run: |
           npx cap add android
+          if [ -f "google-services.json" ]; then
+            cp google-services.json android/app/
+            echo "google-services.json successfully copied to android/app/"
+          else
+            echo "Warning: google-services.json not found in root. FCM will not work."
+          fi
           npx cap sync android
 
       - name: Android APK Derle (Debug)

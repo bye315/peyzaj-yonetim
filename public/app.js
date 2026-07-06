@@ -12,8 +12,56 @@ auth.onAuthStateChanged((user) => {
     loadReminders();
     listenToNewReminders();
     syncLocalNotifications(); // Sync all future reminders locally on startup
+    registerPushNotifications(); // Register device for FCM on login
   }
 });
+
+// Register device for FCM Push Notifications
+async function registerPushNotifications() {
+  if (typeof window.Capacitor === 'undefined' || !window.Capacitor.isPluginAvailable('PushNotifications')) {
+    console.log('PushNotifications plugin is not available on this device');
+    return;
+  }
+  
+  const { PushNotifications } = window.Capacitor.Plugins;
+  
+  try {
+    let perm = await PushNotifications.checkPermissions();
+    if (perm.receive !== 'granted') {
+      perm = await PushNotifications.requestPermissions();
+    }
+    
+    if (perm.receive === 'granted') {
+      await PushNotifications.register();
+    }
+    
+    // Add registration success listener
+    PushNotifications.addListener('registration', async (token) => {
+      console.log('Push registration success, token: ' + token.value);
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        // Store FCM Token securely in Firestore under current user's UID
+        await db.collection('fcm_tokens').doc(currentUser.uid).set({
+          token: token.value,
+          email: currentUser.email,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    });
+    
+    // Add listener for registration errors
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('Push registration error: ', err);
+    });
+    
+    // Add listener for incoming push notifications (foreground)
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Push received in foreground: ', notification);
+    });
+  } catch (err) {
+    console.error('Error during push notification setup:', err);
+  }
+}
 
 function calculateShares(ercan, ismail, omer) {
   const total = Number(ercan) + Number(ismail) + Number(omer);
@@ -503,6 +551,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
       const docRef = await db.collection('reminders').add(payload);
       await scheduleReminderNotification(payload, docRef.id); // Schedule notification immediately on this phone
+      
+      // Trigger network broadcast push notifications via Vercel Serverless Function
+      if (typeof vercelUrl !== 'undefined') {
+        const bodyText = `${payload.personName} kişinin ${payload.jobTitle} işi kaydedildi.`;
+        fetch(`${vercelUrl}/api/send-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `${payload.personName} için hatırlatma`,
+            body: bodyText
+          })
+        }).catch(e => console.error('Error calling vercel notification api:', e));
+      }
+
       event.target.reset();
       await loadReminders();
       alert('Hatırlatma kaydedildi.');

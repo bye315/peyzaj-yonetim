@@ -16,3 +16,6 @@ firebase.initializeApp(firebaseConfig);
 // Kolay erişim için global değişkenler tanımlanıyor
 const db = typeof firebase.firestore === 'function' ? firebase.firestore() : null;
 const auth = typeof firebase.auth === 'function' ? firebase.auth() : null;
+
+// Vercel Serverless API adresiniz. (Kendi Vercel sitenizin adresiyle güncelleyin)
+const vercelUrl = "https://peyzaj-yonetim.vercel.app";
