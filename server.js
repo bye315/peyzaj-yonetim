@@ -168,6 +168,10 @@ app.get('/', (_req, res) => {
   res.redirect(APP_BASE_PATH);
 });
 
-app.listen(PORT, () => {
-  console.log(`Uygulama http://localhost:${PORT} üzerinde çalışıyor`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Uygulama http://localhost:${PORT} üzerinde çalışıyor`);
+  });
+}
+
+module.exports = app;

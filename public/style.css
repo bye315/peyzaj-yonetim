@@ -105,3 +105,58 @@ button.danger {
 small {
   color: #475569;
 }
+
+/* Mobile / small screens */
+@media (max-width: 600px) {
+  .container {
+    padding: 12px;
+    max-width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  label { font-size: 15px; }
+
+  input, select, textarea {
+    padding: 12px;
+    font-size: 15px;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .result {
+    font-size: 15px;
+  }
+
+  h1 { font-size: 20px; }
+  h2 { font-size: 18px; }
+  h3 { font-size: 16px; }
+}
+
+/* Larger screens: slightly increase spacing */
+@media (min-width: 1200px) {
+  .container { max-width: 1100px; }
+}
