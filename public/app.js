@@ -2,6 +2,9 @@ const state = {
   publicKey: '',
 };
 
+// Global reminder memory to access on edit
+let activeReminders = [];
+
 // Auth listener to protect pages and sync notifications
 auth.onAuthStateChanged((user) => {
   if (!user) {
@@ -399,6 +402,8 @@ async function loadReminders() {
       reminders.push({ id: doc.id, ...doc.data() });
     });
 
+    activeReminders = reminders; // Save to global memory for prefilling edit modal
+
     const container = document.querySelector('#reminders');
     if (!reminders.length) {
       container.innerHTML = '<p>Henüz hatırlatma yok.</p>';
@@ -407,25 +412,46 @@ async function loadReminders() {
 
     container.innerHTML = reminders
       .map((reminder) => {
-        const paymentText = reminder.paymentStatus === 'paid' ? 'Ödeme alındı' : 'Ödeme alınmadı';
+        const price = Number(reminder.price || 0);
+        const amountPaid = Number(reminder.amountPaid || 0);
+        const debt = price - amountPaid;
+        
+        let paymentStatusText = '';
+        let paymentClass = '';
+        if (debt <= 0) {
+          paymentStatusText = 'Ödeme alındı';
+          paymentClass = 'paid';
+        } else if (amountPaid > 0) {
+          paymentStatusText = `Kısmi Ödeme (Borç: ${formatCurrency(debt)})`;
+          paymentClass = 'partially-paid';
+        } else {
+          paymentStatusText = `Ödeme alınmadı (Borç: ${formatCurrency(debt)})`;
+          paymentClass = 'unpaid';
+        }
+
         const daysLeft = Math.max(0, Math.ceil((new Date(reminder.nextVisitDate).getTime() - Date.now()) / 86400000));
         return `
           <article class="reminder">
             <div class="reminder-header">
               <strong>${reminder.personName}</strong>
-              <button class="danger" data-remove-id="${reminder.id}" type="button">Sil</button>
+              <div class="actions">
+                <button class="edit-btn" data-edit-id="${reminder.id}" type="button">Düzenle</button>
+                <button class="danger" data-remove-id="${reminder.id}" type="button">Sil</button>
+              </div>
             </div>
-            <div>${reminder.jobTitle}</div>
-            <small>Son biçim: ${reminder.lastCutDate}</small><br />
-            <small>Sonraki ziyaret: ${reminder.nextVisitDate}</small><br />
-            <small>${daysLeft} gün kaldı</small><br />
-            <small>${paymentText}</small>
-            <div>${reminder.notes || 'Not yok'}</div>
+            <div><strong>Yapılacaklar:</strong> ${reminder.jobTitle}</div>
+            <small><strong>Gittiğimiz Tarih:</strong> ${new Date(reminder.lastCutDate).toLocaleDateString('tr-TR')}</small><br />
+            <small><strong>Gideceğimiz Tarih:</strong> ${new Date(reminder.nextVisitDate).toLocaleDateString('tr-TR')}</small><br />
+            <small><strong>Kalan Süre:</strong> ${daysLeft} gün kaldı</small><br />
+            <small><strong>Ücret:</strong> ${formatCurrency(price)} | <strong>Ödenen:</strong> ${formatCurrency(amountPaid)}</small><br />
+            <small class="status-badge ${paymentClass}"><strong>Durum:</strong> ${paymentStatusText}</small>
+            <div style="margin-top: 8px; font-size:14px; color:#334155;"><strong>Not:</strong> ${reminder.notes || 'Not yok'}</div>
           </article>
         `;
       })
       .join('');
 
+    // Setup remove listener
     container.querySelectorAll('[data-remove-id]').forEach((button) => {
       button.addEventListener('click', async () => {
         const id = button.getAttribute('data-remove-id');
@@ -437,9 +463,34 @@ async function loadReminders() {
         }
       });
     });
+
+    // Setup edit modal trigger listener
+    container.querySelectorAll('[data-edit-id]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-edit-id');
+        const reminder = activeReminders.find(r => r.id === id);
+        if (reminder) {
+          document.querySelector('#edit-id').value = reminder.id;
+          document.querySelector('#edit-personName').value = reminder.personName;
+          document.querySelector('#edit-jobTitle').value = reminder.jobTitle;
+          document.querySelector('#edit-lastCutDate').value = reminder.lastCutDate;
+          document.querySelector('#edit-nextVisitDate').value = reminder.nextVisitDate;
+          document.querySelector('#edit-price').value = reminder.price || 0;
+          document.querySelector('#edit-amountPaid').value = reminder.amountPaid || 0;
+          document.querySelector('#edit-notes').value = reminder.notes || '';
+          
+          document.querySelector('#edit-modal').classList.add('show');
+        }
+      });
+    });
   } catch (err) {
     console.error('Error loading reminders:', err);
   }
+}
+
+// Modal closing helpers
+function closeEditModal() {
+  document.querySelector('#edit-modal').classList.remove('show');
 }
 
 // Listen to new reminders in real-time to show local notifications and manage alarms
@@ -464,6 +515,11 @@ function listenToNewReminders() {
             await scheduleReminderNotification(reminder, docId); // Schedule on this phone
           }
           loadReminders();
+        } else if (change.type === 'modified') {
+          if (reminder.updatedAt > sessionStartTime) {
+            await scheduleReminderNotification(reminder, docId); // Reschedule with new date
+          }
+          loadReminders();
         } else if (change.type === 'removed') {
           await cancelReminderNotification(notificationId); // Cancel on this phone
           loadReminders();
@@ -476,10 +532,9 @@ function showLocalNotification(reminder) {
   if (Notification.permission === 'granted') {
     const daysAgo = Math.max(0, Math.round((Date.now() - new Date(reminder.lastCutDate).getTime()) / 86400000));
     const nextVisitDate = new Date(reminder.nextVisitDate).toLocaleDateString('tr-TR');
-    const paymentStatus = reminder.paymentStatus === 'paid' ? 'ödeme alındı' : 'ödeme alınmadı';
     const daysLeft = Math.max(0, Math.ceil((new Date(reminder.nextVisitDate).getTime() - Date.now()) / 86400000));
 
-    const bodyText = `${reminder.personName} kişinin ${reminder.jobTitle} işi ${daysAgo} gün önce biçildi. ${daysLeft} gün kaldı. ${paymentStatus}.`;
+    const bodyText = `${reminder.personName} kişinin ${reminder.jobTitle} işi ${daysAgo} gün önce biçildi. ${daysLeft} gün kaldı.`;
     
     const title = `${reminder.personName} için hatırlatma`;
     const options = {
@@ -515,6 +570,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Setup modal close click listeners
+  document.querySelector('.close-modal').addEventListener('click', closeEditModal);
+  document.querySelector('#cancel-edit').addEventListener('click', closeEditModal);
+  window.addEventListener('click', (event) => {
+    const modal = document.querySelector('#edit-modal');
+    if (event.target === modal) {
+      closeEditModal();
+    }
+  });
+
   document.querySelector('#calculate').addEventListener('click', () => {
     const shares = calculateShares(
       document.querySelector('#ercan').value,
@@ -546,6 +611,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('#omer').value = values[2];
   }
 
+  // Creation form submit handler
   document.querySelector('#reminder-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const payload = {
@@ -553,7 +619,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       jobTitle: document.querySelector('#jobTitle').value,
       lastCutDate: document.querySelector('#lastCutDate').value,
       nextVisitDate: document.querySelector('#nextVisitDate').value,
-      paymentStatus: document.querySelector('#paymentStatus').value,
+      price: Number(document.querySelector('#price').value || 0),
+      amountPaid: Number(document.querySelector('#amountPaid').value || 0),
       notes: document.querySelector('#notes').value,
       createdAt: new Date().toISOString(),
     };
@@ -580,6 +647,50 @@ window.addEventListener('DOMContentLoaded', async () => {
       alert('Hatırlatma kaydedildi.');
     } catch (err) {
       console.error('Error saving reminder:', err);
+      alert('Hata oluştu: ' + err.message);
+    }
+  });
+
+  // Edit form submit handler
+  document.querySelector('#edit-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const id = document.querySelector('#edit-id').value;
+    const payload = {
+      personName: document.querySelector('#edit-personName').value,
+      jobTitle: document.querySelector('#edit-jobTitle').value,
+      lastCutDate: document.querySelector('#edit-lastCutDate').value,
+      nextVisitDate: document.querySelector('#edit-nextVisitDate').value,
+      price: Number(document.querySelector('#edit-price').value || 0),
+      amountPaid: Number(document.querySelector('#edit-amountPaid').value || 0),
+      notes: document.querySelector('#edit-notes').value,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      // Update database
+      await db.collection('reminders').doc(id).update(payload);
+      
+      // Reschedule local notification alarm immediately
+      await scheduleReminderNotification(payload, id);
+
+      // Trigger network broadcast push notifications via Vercel Serverless Function
+      if (typeof vercelUrl !== 'undefined') {
+        const bodyText = `${payload.personName} kişisinin ${payload.jobTitle} işi güncellendi.`;
+        fetch(`${vercelUrl}/api/send-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `${payload.personName} için güncelleme`,
+            body: bodyText
+          })
+        }).catch(e => console.error('Error calling vercel notification api:', e));
+      }
+
+      closeEditModal();
+      await loadReminders();
+      alert('Müşteri bilgileri güncellendi.');
+    } catch (err) {
+      console.error('Error updating reminder:', err);
       alert('Hata oluştu: ' + err.message);
     }
   });

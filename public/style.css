@@ -160,3 +160,79 @@ small {
 @media (min-width: 1200px) {
   .container { max-width: 1100px; }
 }
+
+/* Modal Stilleri */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  place-items: center;
+}
+.modal.show {
+  display: grid;
+}
+.modal-content {
+  background-color: white;
+  padding: 24px;
+  border-radius: 16px;
+  width: min(90vw, 500px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.close-modal {
+  position: absolute;
+  right: 20px;
+  top: 16px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #64748b;
+}
+.close-modal:hover {
+  color: #0f172a;
+}
+
+/* Durum Rozetleri */
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+.status-badge.paid {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-badge.partially-paid {
+  background: #fef9c3;
+  color: #854d0e;
+}
+.status-badge.unpaid {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Kart butonları düzeni */
+.reminder-header .actions {
+  margin-top: 0;
+}
+.reminder-header button {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.reminder-header button.edit-btn {
+  background: #0284c7;
+}
+

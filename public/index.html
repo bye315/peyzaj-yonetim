@@ -108,31 +108,32 @@
         <h2>Bildirim Ekle</h2>
         <form id="reminder-form">
           <label>
-            Kişi adı
-            <input id="personName" required placeholder="Örn: Ercan" />
+            Müşteri adı
+            <input id="personName" required placeholder="Örn: Ahmet Yılmaz" />
           </label>
           <label>
-            İş adı
-            <input id="jobTitle" required placeholder="Örn: Çim biçme" />
+            Yapılacaklar (İş Tanımı)
+            <input id="jobTitle" required placeholder="Örn: Çim biçme ve ilaçlama" />
           </label>
           <label>
-            Son biçim tarihi
+            Gittiğimiz tarih (Son biçim)
             <input id="lastCutDate" type="date" required />
           </label>
           <label>
-            Sonraki ziyaret tarihi
+            Gideceğimiz tarih (Sonraki ziyaret)
             <input id="nextVisitDate" type="date" required />
           </label>
           <label>
-            Ödeme durumu
-            <select id="paymentStatus">
-              <option value="unpaid">Ödeme alınmadı</option>
-              <option value="paid">Ödeme alındı</option>
-            </select>
+            Alınacak Ücret (Toplam Ücret)
+            <input id="price" type="number" step="0.01" required value="0" />
+          </label>
+          <label>
+            Ödenen Miktar
+            <input id="amountPaid" type="number" step="0.01" value="0" />
           </label>
           <label>
             Not
-            <textarea id="notes" rows="3" placeholder="İş durumu, ek not"></textarea>
+            <textarea id="notes" rows="3" placeholder="İş durumu, ek notlar..."></textarea>
           </label>
           <div class="actions">
             <button type="submit">Kaydet ve bildir</button>
@@ -146,6 +147,49 @@
         <div id="reminders"></div>
       </section>
     </main>
+
+    <!-- Müşteri Düzenleme Modalı -->
+    <div id="edit-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>Müşteri Bilgilerini Düzenle</h2>
+        <form id="edit-form">
+          <input type="hidden" id="edit-id" />
+          <label>
+            Müşteri adı
+            <input id="edit-personName" required />
+          </label>
+          <label>
+            Yapılacaklar (İş Tanımı)
+            <input id="edit-jobTitle" required />
+          </label>
+          <label>
+            Gittiğimiz tarih
+            <input id="edit-lastCutDate" type="date" required />
+          </label>
+          <label>
+            Gideceğimiz tarih
+            <input id="edit-nextVisitDate" type="date" required />
+          </label>
+          <label>
+            Alınacak Ücret (Toplam Ücret)
+            <input id="edit-price" type="number" step="0.01" required />
+          </label>
+          <label>
+            Ödenen Miktar
+            <input id="edit-amountPaid" type="number" step="0.01" />
+          </label>
+          <label>
+            Not
+            <textarea id="edit-notes" rows="3"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit">Değişiklikleri Kaydet</button>
+            <button type="button" id="cancel-edit" class="secondary">İptal</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- Firebase SDK (compat mode - Yerel) -->
     <script src="./firebase-app-compat.js"></script>
